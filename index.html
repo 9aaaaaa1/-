@@ -2,16 +2,19 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>全功能TXT查重工具（含筛选+分组导出）</title>
+  <title>会发财集团 TXT 功能合集</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-                           小新出品
-
-  
   <style>
-    body { font-family: Arial, sans-serif; max-width: 960px; margin: 20px auto; padding: 10px 30px; }
-    h1,h2 { text-align: center; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 960px;
+      margin: 20px auto;
+      padding: 10px 30px;
+    }
+    h1, h2, h3 {
+      text-align: center;
+    }
     .dropzone {
       border: 2px dashed #888;
       border-radius: 10px;
@@ -20,11 +23,11 @@
       color: #666;
       margin-bottom: 20px;
       user-select: none;
-      transition: background 0.3s;
+      transition: background-color 0.3s, border-color 0.3s;
     }
     .dropzone.dragover {
-      background: #f0f8ff;
-      border-color: #007bff;
+      background-color: #eef6ff;
+      border-color: #3399ff;
     }
     button {
       margin: 6px 6px 10px 0;
@@ -47,14 +50,16 @@
       margin-top: 10px;
       resize: vertical;
     }
-    label {
-      margin-right: 10px;
-      user-select: none;
-    }
-    input[type="text"], input[type="number"] {
+    input[type="text"],
+    input[type="number"],
+    select {
       padding: 6px;
       margin-right: 20px;
       width: 160px;
+    }
+    label {
+      margin-right: 10px;
+      user-select: none;
     }
     .filters {
       margin-bottom: 12px;
@@ -68,287 +73,538 @@
       margin-right: 16px;
       font-weight: bold;
     }
-    .center { text-align: center; }
-    hr {
-      margin: 30px 0;
-      border: none;
-      border-top: 1px solid #ccc;
+    .center {
+      text-align: center;
+    }
+    #exportPanel {
+      display: none;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
 
-<h1>全功能TXT查重工具</h1>
+  <h1>会发财集团 TXT 文本功能合集</h1>
 
-<div class="dropzone" id="dropzone">请依次拖入两个 .txt 文件</div>
+  <div class="dropzone" id="dropzone">请拖入一个或两个 .txt 或 .xlsx 文件</div>
 
-<div class="center">
-  <button onclick="compareFiles()">开始查重</button>
-  <button onclick="applyFilter()">筛选重复内容</button>
-  <button onclick="downloadDuplicates()">导出重复内容</button>
-  <button onclick="exportDuplicatesToExcel()">导出重复内容 Excel</button>
-  <button onclick="downloadUniqueFiles()">导出文件去重结果</button>
-  <button onclick="exportUniqueFile1ToExcel()">导出文件1去重 Excel</button>
-  <button onclick="exportUniqueFile2ToExcel()">导出文件2去重 Excel</button>
-  <button onclick="exportCombinedUniqueToExcel()">导出两文件去重合并 Excel</button>
-  <button onclick="downloadGroupedFiles()">分组导出重复内容</button>
-  <button onclick="resetAll()">清除文件</button>
-</div>
+  <div class="center">
+    <button type="button" onclick="compareFiles()">开始查重</button>
+    <button type="button" onclick="applyFilter()">筛选重复内容</button>
+    <button type="button" onclick="toggleExportPanel()">导出选项</button>
+    <button type="button" onclick="resetAll()">清除文件</button>
+  </div>
 
-<h3>筛选条件：</h3>
-<div class="filters">
-  <label>关键词：
+  <div id="exportPanel" aria-hidden="true" role="region" aria-label="导出选项面板">
+    <label><input type="checkbox" id="exp_dup_txt" /> 重复内容（TXT）</label>
+    <label><input type="checkbox" id="exp_dup_xlsx" /> 重复内容（Excel）</label>
+    <label><input type="checkbox" id="exp_unique1_txt" /> 文件1去重（TXT）</label>
+    <label><input type="checkbox" id="exp_unique1_xlsx" /> 文件1去重（Excel）</label>
+    <label><input type="checkbox" id="exp_unique2_txt" /> 文件2去重（TXT）</label>
+    <label><input type="checkbox" id="exp_unique2_xlsx" /> 文件2去重（Excel）</label>
+    <label><input type="checkbox" id="exp_combined_xlsx" /> 两文件去重合并（Excel）</label>
+    <label><input type="checkbox" id="exp_grouped" /> 分组导出（TXT）</label>
+    <label><input type="checkbox" id="exportCsv" /> 导出为 CSV 而非 Excel</label>
+    <br />
+    <button type="button" onclick="performExport()">执行导出</button>
+  </div>
+
+  <h3>筛选条件：</h3>
+  <div class="filters" role="region" aria-label="筛选条件">
+    <label for="filterKeyword">关键词：</label>
     <input type="text" id="filterKeyword" placeholder="多个用逗号隔开" />
-  </label>
-  <label>正则表达式：
+    <label for="filterRegex">正则表达式：</label>
     <input type="text" id="filterRegex" placeholder="如：^\\d{11}$" />
-  </label>
-  <label>最小长度：
+    <label for="filterMinLen">最小长度：</label>
     <input type="number" id="filterMinLen" min="0" value="0" />
-  </label>
-  <label><input type="checkbox" id="filterIgnoreCase" checked /> 忽略大小写</label>
-</div>
+    <label><input type="checkbox" id="filterIgnoreCase" checked /> 忽略大小写</label>
+  </div>
 
-<h2>重复内容（两个文件共有的唯一行） - 筛选后内容动态显示：</h2>
-<textarea id="result" readonly placeholder="重复内容将在此处显示"></textarea>
+  <h2>重复内容（两个文件共有的唯一行） - 筛选后内容动态显示：</h2>
+  <textarea id="result" readonly placeholder="重复内容将在此处显示" aria-label="重复内容显示区域"></textarea>
 
-<hr />
+  <hr />
+  <div class="stats" id="stats" aria-live="polite"></div>
+  <canvas id="chart" style="margin-top: 40px; max-height: 350px;" role="img" aria-label="统计图表"></canvas>
 
-<div class="stats" id="stats"></div>
-
-<canvas id="chart" style="margin-top: 40px; max-height: 350px;"></canvas>
 <script>
-let file1 = null, file2 = null;
-let duplicates = [], filteredDuplicates = [];
-let unique1 = [], unique2 = [];
-let lines1 = [], lines2 = [];
+  // 防止浏览器默认打开文件
+  window.addEventListener('dragover', event => event.preventDefault());
+  window.addEventListener('drop', event => event.preventDefault());
 
-const dropzone = document.getElementById('dropzone');
+  let file1 = null;
+  let file2 = null;
+  let lines1 = [];
+  let lines2 = [];
+  let unique1 = [];
+  let unique2 = [];
+  let duplicates = [];
+  let filteredDuplicates = [];
 
-dropzone.addEventListener('dragover', e => {
-  e.preventDefault();
-  dropzone.classList.add('dragover');
-});
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('dragover');
-});
-dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  const txtFiles = [...e.dataTransfer.files].filter(f => f.name.endsWith('.txt'));
-  for (const file of txtFiles) {
-    if (!file1) file1 = file;
-    else if (!file2 && file.name !== file1.name) file2 = file;
-  }
-  updateDropzoneText();
-});
+  const dropzone = document.getElementById('dropzone');
 
-function updateDropzoneText() {
-  let text = '已加载文件：\n';
-  if (file1) text += `1. ${file1.name}\n`;
-  if (file2) text += `2. ${file2.name}`;
-  dropzone.innerText = text;
-}
-
-function readFileLines(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const arr = reader.result.split('\n').map(l => l.trim()).filter(l => l);
-      resolve(arr);
-    };
-    reader.onerror = reject;
-    reader.readAsText(file);
+  dropzone.addEventListener('dragover', event => {
+    event.preventDefault();
+    dropzone.classList.add('dragover');
   });
-}
 
-function countInternalDuplicates(lines) {
-  const seen = new Set(), dup = new Set();
-  for (const line of lines) {
-    if (seen.has(line)) dup.add(line);
-    seen.add(line);
-  }
-  return dup.size;
-}
-
-async function compareFiles() {
-  if (!file1 || !file2) {
-    alert('请先拖入两个 txt 文件');
-    return;
-  }
-  [lines1, lines2] = await Promise.all([readFileLines(file1), readFileLines(file2)]);
-  const set1 = new Set(lines1);
-  const set2 = new Set(lines2);
-  duplicates = [...set1].filter(line => set2.has(line));
-  filteredDuplicates = duplicates.slice();
-
-  const countFile2DupInFile1 = lines2.filter(line => set1.has(line)).length;
-  const internalDup1 = countInternalDuplicates(lines1);
-  const internalDup2 = countInternalDuplicates(lines2);
-  unique1 = [...new Set(lines1)];
-  unique2 = [...new Set(lines2)];
-
-  document.getElementById('result').value = filteredDuplicates.length ? filteredDuplicates.join('\n') : '没有找到重复内容。';
-  document.getElementById('stats').innerHTML = `
-    <span>文件 1 总行数：${lines1.length}</span>
-    <span>文件 1 内部重复行数：${internalDup1}</span><br>
-    <span>文件 2 总行数：${lines2.length}</span>
-    <span>文件 2 内部重复行数：${internalDup2}</span><br>
-    <span>重复内容（唯一行数）：${duplicates.length}</span>
-    <span>文件 2 中 ${countFile2DupInFile1} 行出现在文件 1 中</span>
-  `;
-
-  drawChart({ file1: lines1.length, dup1: internalDup1, file2: lines2.length, dup2: internalDup2, bothDup: duplicates.length, file2repeatIn1: countFile2DupInFile1 });
-}
-
-function applyFilter() {
-  if (duplicates.length === 0) {
-    alert('请先点击“开始查重”生成重复内容');
-    return;
-  }
-  let filtered = duplicates.slice();
-  const kwInput = document.getElementById('filterKeyword').value.trim();
-  const regexInput = document.getElementById('filterRegex').value.trim();
-  const minLenInput = parseInt(document.getElementById('filterMinLen').value) || 0;
-  const ignoreCase = document.getElementById('filterIgnoreCase').checked;
-
-  if (kwInput) {
-    const kws = kwInput.split(',').map(s => s.trim()).filter(s => s);
-    filtered = filtered.filter(line =>
-      kws.some(kw => ignoreCase ? line.toLowerCase().includes(kw.toLowerCase()) : line.includes(kw))
-    );
-  }
-
-  if (regexInput) {
-    let reg = null;
-    try {
-      reg = new RegExp(regexInput, ignoreCase ? 'i' : '');
-    } catch {
-      alert('正则表达式错误！'); return;
-    }
-    filtered = filtered.filter(line => reg.test(line));
-  }
-
-  if (minLenInput > 0) {
-    filtered = filtered.filter(line => line.length >= minLenInput);
-  }
-
-  filteredDuplicates = filtered;
-  document.getElementById('result').value = filtered.length ? filtered.join('\n') : '筛选后无符合条件内容。';
-}
-
-function downloadFile(filename, content) {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function downloadDuplicates() {
-  if (filteredDuplicates.length === 0) {
-    alert('无重复内容可导出');
-    return;
-  }
-  downloadFile('重复内容_筛选后.txt', filteredDuplicates.join('\n'));
-}
-
-function downloadUniqueFiles() {
-  const diff = unique1.filter(line => !new Set(lines2).has(line));
-  if (diff.length > 0) downloadFile('文件1_去除文件2内容结果.txt', diff.join('\n'));
-}
-
-function downloadGroupedFiles() {
-  if (filteredDuplicates.length === 0) {
-    alert('无重复内容可分组导出'); return;
-  }
-  const groups = {};
-  for (const line of filteredDuplicates) {
-    let first = line[0] ? line[0].toUpperCase() : '#';
-    if (!/[A-Z]/.test(first)) first = '#';
-    if (!groups[first]) groups[first] = [];
-    groups[first].push(line);
-  }
-  for (const key in groups) {
-    downloadFile(`重复内容_${key}.txt`, groups[key].join('\n'));
-  }
-  alert('分组导出完成');
-}
-
-function exportToExcelWithHeader(data, filename) {
-  const header = ['账号', '公钥', '私钥', '消息公钥', '消息私钥', 'hash'];
-  const rows = data.map(line => line.split(','));
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "数据");
-  XLSX.writeFile(wb, filename);
-}
-
-function exportDuplicatesToExcel() {
-  if (filteredDuplicates.length === 0) {
-    alert('无重复内容可导出');
-    return;
-  }
-  exportToExcelWithHeader(filteredDuplicates, "重复内容.xlsx");
-}
-
-function exportUniqueFile1ToExcel() {
-  if (unique1.length === 0) return;
-  exportToExcelWithHeader(unique1, "文件1_去重结果.xlsx");
-}
-
-function exportUniqueFile2ToExcel() {
-  if (unique2.length === 0) return;
-  exportToExcelWithHeader(unique2, "文件2_去重结果.xlsx");
-}
-
-function exportCombinedUniqueToExcel() {
-  const combinedSet = new Set([...unique1, ...unique2]);
-  exportToExcelWithHeader([...combinedSet], "两个文件去重合并.xlsx");
-}
-
-function resetAll() {
-  file1 = file2 = null;
-  duplicates = filteredDuplicates = [];
-  unique1 = unique2 = [];
-  lines1 = lines2 = [];
-  document.getElementById('dropzone').innerText = '请依次拖入两个 .txt 文件';
-  document.getElementById('result').value = '';
-  document.getElementById('stats').innerHTML = '';
-  document.getElementById('filterKeyword').value = '';
-  document.getElementById('filterRegex').value = '';
-  document.getElementById('filterMinLen').value = '0';
-  document.getElementById('filterIgnoreCase').checked = true;
-  const chart = Chart.getChart("chart");
-  if (chart) chart.destroy();
-}
-
-function drawChart(data) {
-  const ctx = document.getElementById('chart').getContext('2d');
-  const chart = Chart.getChart("chart");
-  if (chart) chart.destroy();
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: [
-        '文件1总行数', '文件1内部重复',
-        '文件2总行数', '文件2内部重复',
-        '唯一重复行数', '文件2出现在文件1中'
-      ],
-      datasets: [{
-        label: '数量',
-        data: [data.file1, data.dup1, data.file2, data.dup2, data.bothDup, data.file2repeatIn1],
-        backgroundColor: ['#4285F4', '#EA4335', '#34A853', '#FBBC05', '#AA66CC', '#FF7043']
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
-    }
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
   });
-}
+
+  dropzone.addEventListener('drop', event => {
+    event.preventDefault();
+    dropzone.classList.remove('dragover');
+
+    const files = [...event.dataTransfer.files].filter(f => /\.(txt|xlsx)$/i.test(f.name));
+    for (const file of files) {
+      if (!file1) {
+        file1 = file;
+      } else if (!file2 && file.name !== file1.name) {
+        file2 = file;
+      }
+    }
+    updateDropzoneText();
+  });
+
+  /**
+   * 更新拖放区域文本，显示已加载文件信息
+   */
+  function updateDropzoneText() {
+    let text = '已加载文件：\n';
+    if (file1) text += `1. ${file1.name}\n`;
+    if (file2) text += `2. ${file2.name}`;
+    if (!file1 && !file2) text = '请拖入一个或两个 .txt 或 .xlsx 文件';
+    dropzone.innerText = text;
+  }
+
+  /**
+   * 读取文件内容，支持 txt 和 xlsx 文件，返回按行拆分的数组
+   * @param {File} file - 文件对象
+   * @returns {Promise<string[]>} - Promise，解析为文本行数组
+   */
+  function readFileLines(file) {
+    return new Promise((resolve, reject) => {
+      if (/\.xlsx$/i.test(file.name)) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const csv = XLSX.utils.sheet_to_csv(sheet);
+            const lines = csv.split('\n').map(line => line.trim()).filter(line => line);
+            resolve(lines);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const lines = reader.result.split('\n').map(line => line.trim()).filter(line => line);
+          resolve(lines);
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      }
+    });
+  }
+
+  /**
+   * 计算数组中内部重复行数
+   * @param {string[]} lines - 文本行数组
+   * @returns {number} - 重复行数量
+   */
+  function countInternalDuplicates(lines) {
+    const seen = new Set();
+    const duplicatesSet = new Set();
+    for (const line of lines) {
+      if (seen.has(line)) duplicatesSet.add(line);
+      seen.add(line);
+    }
+    return duplicatesSet.size;
+  }
+
+  /**
+   * 对比两个文件，获取重复内容和去重内容
+   * 支持单文件处理（内部去重）
+   */
+  async function compareFiles() {
+    if (!file1) {
+      alert('请至少拖入一个txt或xlsx文件');
+      return;
+    }
+
+    lines1 = await readFileLines(file1);
+
+    if (file2) {
+      lines2 = await readFileLines(file2);
+
+      const set1 = new Set(lines1);
+      const set2 = new Set(lines2);
+
+      duplicates = [...set1].filter(line => set2.has(line));
+      filteredDuplicates = duplicates.slice();
+
+      unique1 = [...new Set(lines1.filter(line => !set2.has(line)))];
+      unique2 = [...new Set(lines2.filter(line => !set1.has(line)))];
+
+      document.getElementById('result').value = filteredDuplicates.length
+        ? filteredDuplicates.join('\n')
+        : '没有找到重复内容。';
+
+      document.getElementById('stats').innerHTML = `
+        <span>文件 1 总行数：${lines1.length}</span>
+        <span>文件 1 内部重复行数：${countInternalDuplicates(lines1)}</span><br>
+        <span>文件 2 总行数：${lines2.length}</span>
+        <span>文件 2 内部重复行数：${countInternalDuplicates(lines2)}</span><br>
+        <span>重复内容（唯一行数）：${duplicates.length}</span>
+      `;
+
+      drawChartSingleOrDouble(true);
+    } else {
+      // 单文件内部去重
+      unique1 = [...new Set(lines1)];
+      duplicates = [];
+      filteredDuplicates = [];
+
+      document.getElementById('result').value =
+        `文件总行数：${lines1.length}\n` +
+        `内部重复行数：${countInternalDuplicates(lines1)}\n` +
+        `唯一行数：${unique1.length}`;
+
+      document.getElementById('stats').innerHTML = `
+        <span>文件 总行数：${lines1.length}</span>
+        <span>内部重复行数：${countInternalDuplicates(lines1)}</span>
+        <span>唯一行数：${unique1.length}</span>
+      `;
+
+      drawChartSingleOrDouble(false);
+    }
+  }
+
+  /**
+   * 根据筛选条件筛选重复内容
+   */
+  function applyFilter() {
+    if (!duplicates.length) {
+      alert('请先点击“开始查重”生成重复内容');
+      return;
+    }
+
+    let filtered = duplicates.slice();
+
+    const kwInput = document.getElementById('filterKeyword').value.trim();
+    const regexInput = document.getElementById('filterRegex').value.trim();
+    const minLenInput = parseInt(document.getElementById('filterMinLen').value, 10) || 0;
+    const ignoreCase = document.getElementById('filterIgnoreCase').checked;
+
+    if (kwInput) {
+      const keywords = kwInput.split(',').map(s => s.trim()).filter(Boolean);
+      filtered = filtered.filter(line =>
+        keywords.some(kw =>
+          ignoreCase
+            ? line.toLowerCase().includes(kw.toLowerCase())
+            : line.includes(kw)
+        )
+      );
+    }
+
+    if (regexInput) {
+      let reg;
+      try {
+        reg = new RegExp(regexInput, ignoreCase ? 'i' : '');
+      } catch {
+        alert('正则表达式格式错误！');
+        return;
+      }
+      filtered = filtered.filter(line => reg.test(line));
+    }
+
+    if (minLenInput > 0) {
+      filtered = filtered.filter(line => line.length >= minLenInput);
+    }
+
+    filteredDuplicates = filtered;
+    document.getElementById('result').value = filtered.length
+      ? filtered.join('\n')
+      : '筛选后无符合条件内容。';
+  }
+
+  /**
+   * Excel导出 - 固定6列表头，支持CSV导出
+   * @param {string[]} data - 要导出的文本数组，逗号分隔列
+   * @param {string} filename - 文件名
+   */
+  function exportToExcelWithHeader(data, filename) {
+    if (!data || data.length === 0) {
+      alert('导出数据为空，无法导出');
+      return;
+    }
+    const header = ['账号', '公钥', '私钥', '消息公钥', '消息私钥', 'hash'];
+
+    // 按逗号分割每行，补足6列
+    const rows = data.map(line => {
+      const parts = line.split(',');
+      while (parts.length < 6) parts.push('');
+      return parts.slice(0, 6);
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '数据');
+
+    if (document.getElementById('exportCsv').checked) {
+      XLSX.writeFile(workbook, filename.replace(/\.xlsx$/, '.csv'), { bookType: 'csv' });
+    } else {
+      XLSX.writeFile(workbook, filename);
+    }
+  }
+
+  /** 以下是各种导出函数，根据导出选项调用 **/
+
+  function exportDuplicatesToExcel() {
+    if (!filteredDuplicates.length) {
+      alert('无重复内容可导出');
+      return;
+    }
+    exportToExcelWithHeader(filteredDuplicates, '重复内容.xlsx');
+  }
+
+  function downloadUniqueFile1Txt() {
+    if (!unique1.length) {
+      alert('文件1去重内容为空，无法导出TXT');
+      return;
+    }
+    downloadFile('文件1_去重结果.txt', unique1.join('\n'));
+  }
+
+  function downloadUniqueFile2Txt() {
+    if (!unique2.length) {
+      alert('文件2去重内容为空，无法导出TXT');
+      return;
+    }
+    downloadFile('文件2_去重结果.txt', unique2.join('\n'));
+  }
+
+  function exportUniqueFile1ToExcel() {
+    if (!unique1.length) {
+      alert('文件1去重内容为空，无法导出Excel');
+      return;
+    }
+    exportToExcelWithHeader(unique1, '文件1_去重结果.xlsx');
+  }
+
+  function exportUniqueFile2ToExcel() {
+    if (!unique2.length) {
+      alert('文件2去重内容为空，无法导出Excel');
+      return;
+    }
+    exportToExcelWithHeader(unique2, '文件2_去重结果.xlsx');
+  }
+
+  function exportCombinedUniqueToExcel() {
+    if (!file2) {
+      alert('单文件时无合并去重内容');
+      return;
+    }
+    const combinedSet = new Set([...unique1, ...unique2]);
+    if (!combinedSet.size) {
+      alert('合并去重内容为空，无法导出');
+      return;
+    }
+    exportToExcelWithHeader(Array.from(combinedSet), '两个文件去重合并.xlsx');
+  }
+
+  /**
+   * 分组导出重复内容TXT，按首字母分组
+   */
+  function downloadGroupedFiles() {
+    if (!file2) {
+      alert('单文件时无重复内容可分组导出');
+      return;
+    }
+    if (!filteredDuplicates.length) {
+      alert('无重复内容可分组导出');
+      return;
+    }
+
+    const groups = {};
+    for (const line of filteredDuplicates) {
+      let firstChar = line[0] ? line[0].toUpperCase() : '#';
+      if (!/[A-Z]/.test(firstChar)) firstChar = '#';
+      if (!groups[firstChar]) groups[firstChar] = [];
+      groups[firstChar].push(line);
+    }
+
+    for (const group in groups) {
+      downloadFile(`重复内容_${group}.txt`, groups[group].join('\n'));
+    }
+    alert('分组导出完成');
+  }
+
+  /**
+   * 辅助：触发浏览器下载文件
+   * @param {string} filename - 文件名
+   * @param {string} content - 文件内容
+   */
+  function downloadFile(filename, content) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  /**
+   * 根据用户选择执行导出
+   */
+  function performExport() {
+    if (!file1) {
+      alert('请先拖入文件');
+      return;
+    }
+
+    const expDupTxt = document.getElementById('exp_dup_txt').checked;
+    const expDupXlsx = document.getElementById('exp_dup_xlsx').checked;
+    const expUnique1Txt = document.getElementById('exp_unique1_txt').checked;
+    const expUnique1Xlsx = document.getElementById('exp_unique1_xlsx').checked;
+    const expUnique2Txt = document.getElementById('exp_unique2_txt').checked;
+    const expUnique2Xlsx = document.getElementById('exp_unique2_xlsx').checked;
+    const expCombinedXlsx = document.getElementById('exp_combined_xlsx').checked;
+    const expGrouped = document.getElementById('exp_grouped').checked;
+
+    if (expDupTxt) {
+      if (filteredDuplicates.length === 0) alert('无重复内容可导出TXT');
+      else downloadFile('重复内容.txt', filteredDuplicates.join('\n'));
+    }
+    if (expDupXlsx) exportDuplicatesToExcel();
+
+    if (expUnique1Txt) downloadUniqueFile1Txt();
+    if (expUnique1Xlsx) exportUniqueFile1ToExcel();
+
+    if (file2) {
+      if (expUnique2Txt) downloadUniqueFile2Txt();
+      if (expUnique2Xlsx) exportUniqueFile2ToExcel();
+
+      if (expCombinedXlsx) exportCombinedUniqueToExcel();
+
+      if (expGrouped) downloadGroupedFiles();
+    } else {
+      if (expUnique2Txt || expUnique2Xlsx || expCombinedXlsx || expGrouped) {
+        alert('单文件时不支持文件2相关导出及合并导出');
+      }
+    }
+  }
+
+  /**
+   * 显示/隐藏导出选项面板
+   */
+  function toggleExportPanel() {
+    const panel = document.getElementById('exportPanel');
+    const isHidden = panel.style.display === 'none' || panel.style.display === '';
+    panel.style.display = isHidden ? 'block' : 'none';
+    panel.setAttribute('aria-hidden', !isHidden);
+  }
+
+  /**
+   * 重置所有数据和界面
+   */
+  function resetAll() {
+    file1 = null;
+    file2 = null;
+    lines1 = [];
+    lines2 = [];
+    unique1 = [];
+    unique2 = [];
+    duplicates = [];
+    filteredDuplicates = [];
+    document.getElementById('result').value = '';
+    document.getElementById('stats').innerHTML = '';
+    updateDropzoneText();
+    document.getElementById('exportPanel').style.display = 'none';
+  }
+
+  /**
+   * 绘制查重统计图（单文件或双文件）
+   * @param {boolean} doubleFile - 是否双文件模式
+   */
+  function drawChartSingleOrDouble(doubleFile) {
+    const ctx = document.getElementById('chart').getContext('2d');
+    if (window.myChart) window.myChart.destroy();
+
+    if (doubleFile) {
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['文件1', '文件1内部重复', '文件2', '文件2内部重复', '重复内容（唯一）'],
+          datasets: [{
+            label: '行数统计',
+            data: [
+              lines1.length,
+              countInternalDuplicates(lines1),
+              lines2.length,
+              countInternalDuplicates(lines2),
+              duplicates.length
+            ],
+            backgroundColor: [
+              '#3f51b5',
+              '#7986cb',
+              '#f44336',
+              '#ef9a9a',
+              '#4caf50'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: '两个文件查重统计图' }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    } else {
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['总行数', '内部重复行数', '唯一行数'],
+          datasets: [{
+            label: '行数统计',
+            data: [
+              lines1.length,
+              countInternalDuplicates(lines1),
+              unique1.length
+            ],
+            backgroundColor: ['#3f51b5', '#7986cb', '#4caf50']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: '单文件去重统计图' }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+  }
+
 </script>
+
 </body>
 </html>
